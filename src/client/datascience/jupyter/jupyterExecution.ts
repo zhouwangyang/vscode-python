@@ -104,6 +104,11 @@ export class JupyterExecutionBase implements IJupyterExecution {
         return Cancellation.race(() => this.isCommandSupported(JupyterCommands.KernelSpecCommand), cancelToken);
     }
 
+    public isSpawnSupported(cancelToken?: CancellationToken): Promise<boolean> {
+        // Supported if we can run a notebook
+        return this.isNotebookSupported(cancelToken);
+    }
+
     public connectToNotebookServer(uri: string | undefined, usingDarkTheme: boolean, useDefaultConfig: boolean, cancelToken?: CancellationToken, workingDir?: string): Promise<INotebookServer | undefined> {
         // Return nothing if we cancel
         return Cancellation.race(async () => {

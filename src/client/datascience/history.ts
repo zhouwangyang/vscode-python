@@ -3,6 +3,8 @@
 'use strict';
 import '../common/extensions';
 
+import * as uuid from 'uuid/v4';
+import * as vsls from 'vsls/vscode';
 import * as fs from 'fs-extra';
 import { inject, injectable } from 'inversify';
 import * as path from 'path';
@@ -27,7 +29,7 @@ import { createDeferred, Deferred } from '../common/utils/async';
 import * as localize from '../common/utils/localize';
 import { IInterpreterService } from '../interpreter/contracts';
 import { captureTelemetry, sendTelemetryEvent } from '../telemetry';
-import { EditorContexts, HistoryMessages, HistoryNonLiveShareMessages, Identifiers, Telemetry } from './constants';
+import { EditorContexts, HistoryMessages, Identifiers, Telemetry } from './constants';
 import { HistoryMessageListener } from './historyMessageListener';
 import { JupyterInstallError } from './jupyter/jupyterInstallError';
 import {
@@ -43,8 +45,10 @@ import {
     INotebookServer,
     INotebookServerManager,
     InterruptResult,
-    IStatusProvider
+    IStatusProvider,
+    ISysInfo
 } from './types';
+import { vscMockSelection } from '../../test/mocks/vsc/selection';
 
 export enum SysInfoReason {
     Start,
@@ -68,9 +72,10 @@ export class History implements IHistory {
     private jupyterServer: INotebookServer | undefined;
     private changeHandler: IDisposable | undefined;
     private messageListener : HistoryMessageListener;
+    private id : string;
 
     constructor(
-        @inject(ILiveShareApi) liveShare : ILiveShareApi,
+        @inject(ILiveShareApi) private liveShare : ILiveShareApi,
         @inject(IApplicationShell) private applicationShell: IApplicationShell,
         @inject(IDocumentManager) private documentManager: IDocumentManager,
         @inject(IInterpreterService) private interpreterService: IInterpreterService,
@@ -87,6 +92,9 @@ export class History implements IHistory {
         @inject(INotebookServerManager) private jupyterServerManager: INotebookServerManager,
         @inject(IWorkspaceService) private workspaceService: IWorkspaceService) {
 
+        // Create our unique id. We use this to skip messages we send to other history windows
+        this.id = uuid();
+
         // Sign up for configuration changes
         this.interpreterChangedDisposable = this.interpreterService.onDidChangeInterpreter(this.onInterpreterChanged);
         this.changeHandler = this.configuration.getSettings().onDidChange(this.onSettingsChanged.bind(this));
@@ -96,7 +104,7 @@ export class History implements IHistory {
         this.disposables.push(this.closedEvent);
 
         // Create a history message listener to listen to messages from our webpanel (or remote session)
-        this.messageListener = new HistoryMessageListener(liveShare, this.onMessage, this.dispose);
+        this.messageListener = new HistoryMessageListener(this.liveShare, this.onMessage, this.dispose);
 
         // Setup our init promise for the web panel. We use this to make sure we're in sync with our
         // react control.
@@ -131,8 +139,12 @@ export class History implements IHistory {
     }
 
     // tslint:disable-next-line: no-any no-empty
-    public postMessage(type: string, payload?: any) {
+    public async postMessage(type: string, payload?: any) : Promise<void> {
         if (this.webPanel) {
+            // Make sure the webpanel is up before we send it anything.
+            await this.webPanelInit.promise;
+
+            // Then send it the message
             this.webPanel.postMessage({ type: type, payload: payload });
         }
     }
@@ -160,11 +172,11 @@ export class History implements IHistory {
                 this.export(payload);
                 break;
 
-            case HistoryNonLiveShareMessages.Started:
+            case HistoryMessages.Started:
                 this.webPanelRendered(payload);
                 break;
 
-            case HistoryNonLiveShareMessages.SendInfo:
+            case HistoryMessages.SendInfo:
                 this.updateContexts(payload);
                 break;
 
@@ -194,6 +206,10 @@ export class History implements IHistory {
 
             case HistoryMessages.CollapseAll:
                 this.logTelemetry(Telemetry.CollapseAll);
+                break;
+
+            case HistoryMessages.AddedSysInfo:
+                this.onAddedSysInfo(payload);
                 break;
 
             default:
@@ -307,15 +323,27 @@ export class History implements IHistory {
         }
     }
 
+    // tslint:disable-next-line:no-any
+    private onAddedSysInfo(payload: any) {
+        // See if this is from us or not.
+        if (payload.id && payload.id !== this.id) {
+
+            // Not from us, must come from a different history window. Add to our
+            // own to keep in sync
+            if (payload.sysInfo) {
+                const sysInfo = payload.sysInfo as ICell;
+                this.onAddCodeEvent([sysInfo]);
+            }
+        }
+    }
+
     private async restartKernelInternal(): Promise<void> {
         this.restartingKernel = true;
 
         // First we need to finish all outstanding cells.
         this.unfinishedCells.forEach(c => {
             c.state = CellState.error;
-            if (this.webPanel) {
-                this.webPanel.postMessage({ type: HistoryMessages.FinishCell, payload: c });
-            }
+            this.postMessage(HistoryMessages.FinishCell, c);
         });
         this.unfinishedCells = [];
         this.potentiallyUnfinishedStatus.forEach(s => s.dispose());
@@ -466,10 +494,8 @@ export class History implements IHistory {
         sendTelemetryEvent(event);
     }
 
-    private sendCell(cell: ICell, message: string) {
-        if (this.webPanel) {
-            this.webPanel.postMessage({ type: message, payload: cell });
-        }
+    private async sendCell(cell: ICell, message: string) : Promise<void> {
+        this.postMessage(message, cell);
     }
 
     private onAddCodeEvent = (cells: ICell[], editor?: TextEditor) => {
@@ -520,10 +546,7 @@ export class History implements IHistory {
     private onSettingsChanged = () => {
         // Stringify our settings to send over to the panel
         const dsSettings = JSON.stringify(this.generateDataScienceExtraSettings());
-
-        if (this.webPanel) {
-            this.webPanel.postMessage({ type: HistoryMessages.UpdateSettings, payload: dsSettings });
-        }
+        this.postMessage(HistoryMessages.UpdateSettings, dsSettings);
     }
 
     private onInterpreterChanged = async () => {
@@ -604,7 +627,8 @@ export class History implements IHistory {
             try {
                 // tslint:disable-next-line: no-any
                 await this.fileSystem.writeFile(file, JSON.stringify(notebook), { encoding: 'utf8', flag: 'w' });
-                this.applicationShell.showInformationMessage(localize.DataScience.exportDialogComplete().format(file), localize.DataScience.exportOpenQuestion()).then((str: string | undefined) => {
+                const openQuestion = (await this.jupyterExecution.isSpawnSupported()) ? localize.DataScience.exportOpenQuestion() : undefined;
+                this.applicationShell.showInformationMessage(localize.DataScience.exportDialogComplete().format(file), openQuestion).then((str: string | undefined) => {
                     if (str && this.jupyterServer) {
                         // If the user wants to, open the notebook they just generated.
                         this.jupyterExecution.spawnNotebook(file).ignoreErrors();
@@ -687,6 +711,11 @@ export class History implements IHistory {
             if (sysInfo) {
                 this.onAddCodeEvent([sysInfo]);
             }
+
+            // For interrupt or restart, tell the other sides of a live share session
+            if (reason === SysInfoReason.Interrupt || reason === SysInfoReason.Restart) {
+                this.messageListener.onMessage(HistoryMessages.AddedSysInfo, {sysInfo, id: this.id});
+            }
         }
     }
 
@@ -716,11 +745,6 @@ export class History implements IHistory {
             // Use this script to create our web view panel. It should contain all of the necessary
             // script to communicate with this class.
             this.webPanel = this.provider.create(this.messageListener, localize.DataScience.historyTitle(), mainScriptPath, css, settings);
-
-            // Wait for our web panel initialization message to appear. VS code doesn't give us a way
-            // to wait for the html to load. If we start interacting with the webpanel before it's ready, we
-            // miss out on handling messages.
-            await this.webPanelInit.promise;
         }
     }
 
@@ -738,13 +762,17 @@ export class History implements IHistory {
                 throw new JupyterInstallError(localize.DataScience.jupyterNotSupported(), localize.DataScience.pythonInteractiveHelpLink());
             } else {
                 // See if the usable interpreter is not our active one. If so, show a warning
-                const active = await this.interpreterService.getActiveInterpreter();
-                const activeDisplayName = active ? active.displayName : undefined;
-                const activePath = active ? active.path : undefined;
-                const usableDisplayName = usableInterpreter ? usableInterpreter.displayName : undefined;
-                const usablePath = usableInterpreter ? usableInterpreter.path : undefined;
-                if (activePath && usablePath && !this.fileSystem.arePathsSame(activePath, usablePath) && activeDisplayName && usableDisplayName) {
-                    this.applicationShell.showWarningMessage(localize.DataScience.jupyterKernelNotSupportedOnActive().format(activeDisplayName, usableDisplayName));
+                // Only do this if not the guest in a liveshare session
+                const api = await this.liveShare.getApi();
+                if (!api || (api.session && api.session.role !== vsls.Role.Guest)) {
+                    const active = await this.interpreterService.getActiveInterpreter();
+                    const activeDisplayName = active ? active.displayName : undefined;
+                    const activePath = active ? active.path : undefined;
+                    const usableDisplayName = usableInterpreter ? usableInterpreter.displayName : undefined;
+                    const usablePath = usableInterpreter ? usableInterpreter.path : undefined;
+                    if (activePath && usablePath && !this.fileSystem.arePathsSame(activePath, usablePath) && activeDisplayName && usableDisplayName) {
+                        this.applicationShell.showWarningMessage(localize.DataScience.jupyterKernelNotSupportedOnActive().format(activeDisplayName, usableDisplayName));
+                    }
                 }
             }
 

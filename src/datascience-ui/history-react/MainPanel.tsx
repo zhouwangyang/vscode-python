@@ -8,7 +8,7 @@ import * as React from 'react';
 
 import { CellMatcher } from '../../client/datascience/cellMatcher';
 import { generateMarkdownFromCodeLines } from '../../client/datascience/common';
-import { HistoryMessages, HistoryNonLiveShareMessages } from '../../client/datascience/constants';
+import { HistoryMessages } from '../../client/datascience/constants';
 import { CellState, ICell, IHistoryInfo } from '../../client/datascience/types';
 import { ErrorBoundary } from '../react-common/errorBoundary';
 import { getLocString } from '../react-common/locReactSide';
@@ -78,7 +78,7 @@ export class MainPanel extends React.Component<IMainPanelProps, IMainPanelState>
         // If haven't sent our startup message, send it now.
         if (!this.sentStartup) {
             this.sentStartup = true;
-            PostOffice.sendMessage({type: HistoryNonLiveShareMessages.Started});
+            PostOffice.sendMessage({type: HistoryMessages.Started});
         }
 
         const progressBar = this.state.busy && !this.props.testMode ? <Progress /> : undefined;
@@ -561,7 +561,7 @@ export class MainPanel extends React.Component<IMainPanelProps, IMainPanelState>
             undoCount: this.state.undoStack.length,
             redoCount: this.state.redoStack.length
         };
-        PostOffice.sendMessage({type: HistoryNonLiveShareMessages.SendInfo, payload: { info: info }});
+        PostOffice.sendMessage({type: HistoryMessages.SendInfo, payload: { info: info }});
     }
 
     private updateOrAdd = (cell: ICell, allowAdd? : boolean) => {

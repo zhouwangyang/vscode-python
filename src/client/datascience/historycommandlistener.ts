@@ -148,7 +148,7 @@ export class HistoryCommandListener implements IDataScienceCommandListener {
                     }, localize.DataScience.exportingFormat(), file);
 
                     // When all done, show a notice that it completed.
-                    const openQuestion = localize.DataScience.exportOpenQuestion();
+                    const openQuestion = (await this.jupyterExecution.isSpawnSupported()) ? localize.DataScience.exportOpenQuestion() : undefined;
                     if (uri && uri.fsPath) {
                         this.applicationShell.showInformationMessage(localize.DataScience.exportDialogComplete().format(uri.fsPath), openQuestion).then((str: string | undefined) => {
                             if (str === openQuestion) {
@@ -194,7 +194,7 @@ export class HistoryCommandListener implements IDataScienceCommandListener {
                         }, true);
 
                         // When all done, show a notice that it completed.
-                        const openQuestion = localize.DataScience.exportOpenQuestion();
+                        const openQuestion = (await this.jupyterExecution.isSpawnSupported()) ? localize.DataScience.exportOpenQuestion() : undefined;
                         this.applicationShell.showInformationMessage(localize.DataScience.exportDialogComplete().format(output), openQuestion).then((str: string | undefined) => {
                             if (str === openQuestion && output) {
                                 // If the user wants to, open the notebook they just generated.

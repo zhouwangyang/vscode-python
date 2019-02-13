@@ -92,6 +92,10 @@ export class JupyterExecutionFactory implements IJupyterExecution {
         const execution = await this.executionFactory.get();
         return execution.isKernelSpecSupported(cancelToken);
     }
+    public async isSpawnSupported(cancelToken?: CancellationToken): Promise<boolean> {
+        const execution = await this.executionFactory.get();
+        return execution.isSpawnSupported(cancelToken);
+    }
     public async connectToNotebookServer(uri: string | undefined, usingDarkTheme: boolean, useDefaultConfig: boolean, cancelToken?: CancellationToken, workingDir?: string): Promise<INotebookServer | undefined> {
         const execution = await this.executionFactory.get();
         return execution.connectToNotebookServer(uri, usingDarkTheme, useDefaultConfig, cancelToken, workingDir);

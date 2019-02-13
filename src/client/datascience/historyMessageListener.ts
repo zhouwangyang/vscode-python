@@ -4,7 +4,7 @@
 import '../common/extensions';
 
 import { ILiveShareApi, IWebPanelMessageListener } from '../common/application/types';
-import { HistoryMessages, LiveShare } from './constants';
+import { HistoryMessages, LiveShare, HistoryRemoteMessages } from './constants';
 import { PostOffice } from './liveshare/postOffice';
 
 // tslint:disable:no-any
@@ -40,8 +40,8 @@ export class HistoryMessageListener implements IWebPanelMessageListener {
     }
 
     public onMessage(message: string, payload: any) {
-        // We received a message from the local webview. Broadcast it to everybody if it's a history message
-        if (this.historyMessages.indexOf(message) >= 0) {
+        // We received a message from the local webview. Broadcast it to everybody if it's a remote message
+        if (HistoryRemoteMessages.indexOf(message) >= 0) {
             this.postOffice.postCommand(message, payload).ignoreErrors();
         } else {
             // Send to just our local callback.

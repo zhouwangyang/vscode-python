@@ -69,12 +69,20 @@ export namespace HistoryMessages {
     export const Interrupt = 'interrupt';
     export const SubmitNewCell = 'submit_new_cell';
     export const UpdateSettings = 'update_settings';
-}
-
-export namespace HistoryNonLiveShareMessages {
     export const SendInfo = 'send_info';
     export const Started = 'started';
+    export const AddedSysInfo = 'added_sys_info'
 }
+
+// These are the messages that will mirror'd to guest/hosts in
+// a live share session
+export const HistoryRemoteMessages : string[] = [
+    HistoryMessages.StartCell,
+    HistoryMessages.FinishCell,
+    HistoryMessages.UpdateCell,
+    HistoryMessages.SubmitNewCell,
+    HistoryMessages.AddedSysInfo,
+]
 
 export enum Telemetry {
     ImportNotebook = 'DATASCIENCE.IMPORT_NOTEBOOK',
@@ -142,6 +150,7 @@ export namespace LiveShare {
     export const LiveShareBroadcastRequest = 'broadcastRequest';
     export const ResponseLifetime = 15000;
     export const ResponseRange = 1000; // Range of time alloted to check if a response matches or not
+    export const InterruptDefaultTimeout = 10000;
 }
 
 export namespace LiveShareCommands {
@@ -155,4 +164,6 @@ export namespace LiveShareCommands {
     export const serverResponse = 'serverResponse';
     export const catchupRequest = 'catchupRequest';
     export const syncRequest = 'synchRequest';
+    export const restart = 'restart';
+    export const interrupt = 'interrupt';
 }

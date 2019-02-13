@@ -25,7 +25,7 @@ import { IDataScienceSettings } from '../../client/common/types';
 import { createDeferred, Deferred } from '../../client/common/utils/async';
 import { noop } from '../../client/common/utils/misc';
 import { Architecture } from '../../client/common/utils/platform';
-import { EditorContexts, HistoryMessages, HistoryNonLiveShareMessages } from '../../client/datascience/constants';
+import { EditorContexts, HistoryMessages } from '../../client/datascience/constants';
 import { HistoryMessageListener } from '../../client/datascience/historyMessageListener';
 import { IHistory, IHistoryProvider, IJupyterExecution } from '../../client/datascience/types';
 import { InterpreterType, PythonInterpreter } from '../../client/interpreter/contracts';
@@ -148,7 +148,7 @@ suite('History output tests', () => {
         // During testing the MainPanel sends the init message before our history is created.
         // Pretend like it's happening now
         const listener = ((result as any)['messageListener']) as HistoryMessageListener;
-        listener.onMessage(HistoryNonLiveShareMessages.Started, {});
+        listener.onMessage(HistoryMessages.Started, {});
 
         return result;
     }

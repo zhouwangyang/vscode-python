@@ -55,6 +55,8 @@ export class HostJupyterServer
             if (service) {
                 service.onRequest(LiveShareCommands.syncRequest, (args: object, cancellation: CancellationToken) => this.onSync());
                 service.onRequest(LiveShareCommands.getSysInfo, (args: any[], cancellation: CancellationToken) => this.onGetSysInfoRequest(cancellation));
+                service.onRequest(LiveShareCommands.restart, (args: any[], cancellation: CancellationToken) => this.onRestartRequest(cancellation))
+                service.onRequest(LiveShareCommands.interrupt, (args: any[], cancellation: CancellationToken) => this.onInterruptRequest(args.length > 0 ? args[0] as number : LiveShare.InterruptDefaultTimeout, cancellation))
                 service.onNotify(LiveShareCommands.catchupRequest, (args: object) => this.onCatchupRequest(args));
             }
         }
@@ -83,9 +85,7 @@ export class HostJupyterServer
 
     public async restartKernel(): Promise<void> {
         try {
-            const time = Date.now();
             await super.restartKernel();
-            return this.postResult(ServerResponseType.Restart, {type: ServerResponseType.Restart, time});
         } catch (exc) {
             this.postException(exc);
             throw exc;
@@ -96,7 +96,6 @@ export class HostJupyterServer
         try {
             const time = Date.now();
             const result = await super.interruptKernel(timeoutMs);
-            this.postResult(ServerResponseType.Interrupt, {type: ServerResponseType.Interrupt, time, result});
             return result;
         } catch (exc) {
             this.postException(exc);
@@ -119,6 +118,15 @@ export class HostJupyterServer
     private onGetSysInfoRequest(cancellation: CancellationToken) : Promise<any> {
         // Get the sys info from our local server
         return super.getSysInfo();
+    }
+
+    private onRestartRequest(cancellation: CancellationToken) : Promise<any> {
+        // Just call the base
+        return super.restartKernel();
+    }
+    private onInterruptRequest(timeout: number, cancellation: CancellationToken) : Promise<any> {
+        // Just call the base
+        return super.interruptKernel(timeout);
     }
 
     private async onCatchupRequest(args: object) : Promise<void> {

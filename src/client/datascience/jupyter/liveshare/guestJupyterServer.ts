@@ -24,7 +24,6 @@ import {
 import { LiveShareParticipantDefault, LiveShareParticipantGuest } from './liveShareParticipantMixin';
 import {
     IExecuteObservableResponse,
-    IInterruptResponse,
     ILiveShareParticipant,
     IServerResponse,
     ServerResponseType
@@ -43,7 +42,7 @@ export class GuestJupyterServer
         logger: ILogger,
         private disposableRegistry: IDisposableRegistry,
         asyncRegistry: IAsyncDisposableRegistry,
-        configService: IConfigurationService,
+        private configService: IConfigurationService,
         sessionManager: IJupyterSessionManager) {
         super(liveShare);
     }
@@ -98,6 +97,8 @@ export class GuestJupyterServer
     }
 
     public executeObservable(code: string, file: string, line: number, id: string): Observable<ICell[]> {
+        // This call should be mirror'd by the underlying event system, so we can just wait for a response.
+
         // Create a wrapper observable around the actual server
         return new Observable<ICell[]>(subscriber => {
             // Wait for the observable responses to come in
@@ -115,12 +116,16 @@ export class GuestJupyterServer
     }
 
     public async restartKernel(): Promise<void> {
-        await this.waitForResponse(ServerResponseType.Restart);
+        // We need to force a restart on the host side
+        return this.sendRequest(LiveShareCommands.restart, []);
     }
 
     public async interruptKernel(timeoutMs: number): Promise<InterruptResult> {
-        const response = await this.waitForResponse(ServerResponseType.Restart);
-        return (response as IInterruptResponse).result;
+        const settings = this.configService.getSettings();
+        const interruptTimeout = settings.datascience.jupyterInterruptTimeout;
+
+        const response = await this.sendRequest(LiveShareCommands.interrupt, [interruptTimeout]);
+        return (response as InterruptResult);
     }
 
     // Return a copy of the connection information that this server used to connect with
@@ -173,6 +178,11 @@ export class GuestJupyterServer
             // Check for any waiters.
             this.dispatchResponses();
         }
+    }
+
+    private async sendRequest(command: string, args: any[]) : Promise<any> {
+        const service = await this.waitForService();
+        return service.request(command, args);
     }
 
     private async waitForObservable(subscriber: Subscriber<ICell[]>, code: string, file: string, line: number, id: string) : Promise<void> {
