@@ -49,40 +49,6 @@ export namespace RegExpValues {
     export const ArgsSplitterRegEx = /([^\s,]+)/g;
 }
 
-export namespace HistoryMessages {
-    export const StartCell = 'start_cell';
-    export const FinishCell = 'finish_cell';
-    export const UpdateCell = 'update_cell';
-    export const GotoCodeCell = 'gotocell_code';
-    export const RestartKernel = 'restart_kernel';
-    export const Export = 'export_to_ipynb';
-    export const GetAllCells = 'get_all_cells';
-    export const ReturnAllCells = 'return_all_cells';
-    export const DeleteCell = 'delete_cell';
-    export const DeleteAllCells = 'delete_all_cells';
-    export const Undo = 'undo';
-    export const Redo = 'redo';
-    export const ExpandAll = 'expand_all';
-    export const CollapseAll = 'collapse_all';
-    export const StartProgress = 'start_progress';
-    export const StopProgress = 'stop_progress';
-    export const Interrupt = 'interrupt';
-    export const SubmitNewCell = 'submit_new_cell';
-    export const UpdateSettings = 'update_settings';
-    export const SendInfo = 'send_info';
-    export const Started = 'started';
-    export const AddedSysInfo = 'added_sys_info'
-}
-
-// These are the messages that will mirror'd to guest/hosts in
-// a live share session
-export const HistoryRemoteMessages : string[] = [
-    HistoryMessages.StartCell,
-    HistoryMessages.FinishCell,
-    HistoryMessages.UpdateCell,
-    HistoryMessages.SubmitNewCell,
-    HistoryMessages.AddedSysInfo,
-]
 
 export enum Telemetry {
     ImportNotebook = 'DATASCIENCE.IMPORT_NOTEBOOK',
@@ -111,7 +77,8 @@ export enum Telemetry {
     SubmitCellThroughInput = 'DATASCIENCE.SUBMITCELLFROMREPL',
     ConnectLocalJupyter = 'DATASCIENCE.CONNECTLOCALJUPYTER',
     ConnectRemoteJupyter = 'DATASCIENCE.CONNECTREMOTEJUPYTER',
-    ConnectFailedJupyter = 'DATASCIENCE.CONNECTFAILEDJUPYTER'
+    ConnectFailedJupyter = 'DATASCIENCE.CONNECTFAILEDJUPYTER',
+    RemoteAddCode = 'DATASCIENCE.LIVESHARE.ADDCODE'
 }
 
 export namespace HelpLinks {

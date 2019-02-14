@@ -4,8 +4,9 @@
 import '../common/extensions';
 
 import { ILiveShareApi, IWebPanelMessageListener } from '../common/application/types';
-import { HistoryMessages, LiveShare, HistoryRemoteMessages } from './constants';
+import { LiveShare } from './constants';
 import { PostOffice } from './liveshare/postOffice';
+import { HistoryRemoteMessages, HistoryMessages } from './historyTypes';
 
 // tslint:disable:no-any
 

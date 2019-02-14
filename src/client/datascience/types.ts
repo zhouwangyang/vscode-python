@@ -21,7 +21,7 @@ export interface IDataScience extends Disposable {
 
 export const IDataScienceCommandListener = Symbol('IDataScienceCommandListener');
 export interface IDataScienceCommandListener {
-    register(commandManager: ICommandBroker): void;
+    register(commandManager: ICommandManager): void;
 }
 
 // Connection information for talking to a jupyter notebook process
@@ -124,7 +124,7 @@ export const IHistory = Symbol('IHistory');
 export interface IHistory extends Disposable {
     closed: Event<IHistory>;
     show() : Promise<void>;
-    addCode(code: string, file: string, line: number, id: string, editor?: TextEditor) : Promise<void>;
+    addCode(code: string, file: string, line: number, editor?: TextEditor) : Promise<void>;
     // tslint:disable-next-line:no-any
     postMessage(type: string, payload?: any): void;
     undoCells(): void;
@@ -160,11 +160,11 @@ export interface ICodeWatcher {
     getVersion() : number;
     getCodeLenses() : CodeLens[];
     getCachedSettings() : IDataScienceSettings | undefined;
-    runAllCells(id: string): void;
-    runCell(range: Range, id: string): void;
-    runCurrentCell(id: string): void;
-    runCurrentCellAndAdvance(id: string): void;
-    runSelectionOrLine(activeEditor: TextEditor | undefined, id: string): void;
+    runAllCells(): void;
+    runCell(range: Range): void;
+    runCurrentCell(): void;
+    runCurrentCellAndAdvance(): void;
+    runSelectionOrLine(activeEditor: TextEditor | undefined): void;
 }
 
 export enum CellState {
@@ -231,9 +231,4 @@ export interface IDataScienceExtraSettings extends IDataScienceSettings {
     extraSettings: {
         terminalCursor: string;
     };
-}
-
-export const ICommandBroker = Symbol('ICommandBroker');
-
-export interface ICommandBroker extends ICommandManager {
 }

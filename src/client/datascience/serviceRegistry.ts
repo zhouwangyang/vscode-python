@@ -3,7 +3,6 @@
 'use strict';
 import { IServiceManager } from '../ioc/types';
 import { CodeCssGenerator } from './codeCssGenerator';
-import { CommandBroker } from './commandBroker';
 import { DataScience } from './datascience';
 import { DataScienceCodeLensProvider } from './editor-integration/codelensprovider';
 import { CodeWatcher } from './editor-integration/codewatcher';
@@ -21,7 +20,6 @@ import { StatusProvider } from './statusProvider';
 import {
     ICodeCssGenerator,
     ICodeWatcher,
-    ICommandBroker,
     IDataScience,
     IDataScienceCodeLensProvider,
     IDataScienceCommandListener,
@@ -42,7 +40,6 @@ export function registerTypes(serviceManager: IServiceManager) {
     serviceManager.addSingleton<IDataScience>(IDataScience, DataScience);
     serviceManager.addSingleton<IJupyterExecution>(IJupyterExecution, JupyterExecutionFactory);
     serviceManager.add<IDataScienceCommandListener>(IDataScienceCommandListener, HistoryCommandListener);
-    serviceManager.addSingleton<ICommandBroker>(ICommandBroker, CommandBroker);
     serviceManager.addSingleton<IHistoryProvider>(IHistoryProvider, HistoryProvider);
     serviceManager.add<IHistory>(IHistory, History);
     serviceManager.add<INotebookExporter>(INotebookExporter, JupyterExporter);

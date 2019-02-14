@@ -76,7 +76,7 @@ export class CodeWatcher implements ICodeWatcher {
     }
 
     @captureTelemetry(Telemetry.RunAllCells)
-    public async runAllCells(id: string) {
+    public async runAllCells() {
         const activeHistory = this.historyProvider.getOrCreateActive();
 
         // Run all of our code lenses, they should always be ordered in the file so we can just
@@ -87,7 +87,7 @@ export class CodeWatcher implements ICodeWatcher {
                 const range: Range = new Range(lens.command.arguments[1], lens.command.arguments[2], lens.command.arguments[3], lens.command.arguments[4]);
                 if (this.document && range) {
                     const code = this.document.getText(range);
-                    await activeHistory.addCode(code, this.getFileName(), range.start.line, id);
+                    await activeHistory.addCode(code, this.getFileName(), range.start.line);
                 }
             }
         }
@@ -96,13 +96,13 @@ export class CodeWatcher implements ICodeWatcher {
         if (this.codeLenses.length === 0) {
             if (this.document) {
                 const code = this.document.getText();
-                await activeHistory.addCode(code, this.getFileName(), 0, id);
+                await activeHistory.addCode(code, this.getFileName(), 0);
             }
         }
     }
 
     @captureTelemetry(Telemetry.RunSelectionOrLine)
-    public async runSelectionOrLine(activeEditor : TextEditor | undefined, id: string) {
+    public async runSelectionOrLine(activeEditor : TextEditor | undefined) {
         const activeHistory = this.historyProvider.getOrCreateActive();
 
         if (this.document && activeEditor &&
@@ -119,20 +119,20 @@ export class CodeWatcher implements ICodeWatcher {
             }
 
             if (code && code.trim().length) {
-                await activeHistory.addCode(code, this.getFileName(), activeEditor.selection.start.line, id, activeEditor);
+                await activeHistory.addCode(code, this.getFileName(), activeEditor.selection.start.line, activeEditor);
             }
         }
     }
 
     @captureTelemetry(Telemetry.RunCell)
-    public async runCell(range: Range, id: string) {
+    public async runCell(range: Range) {
         const activeHistory = this.historyProvider.getOrCreateActive();
         if (this.document) {
             // Use that to get our code.
             const code = this.document.getText(range);
 
             try {
-                await activeHistory.addCode(code, this.getFileName(), range.start.line, id, this.documentManager.activeTextEditor);
+                await activeHistory.addCode(code, this.getFileName(), range.start.line, this.documentManager.activeTextEditor);
             } catch (err) {
                 this.handleError(err);
             }
@@ -141,7 +141,7 @@ export class CodeWatcher implements ICodeWatcher {
     }
 
     @captureTelemetry(Telemetry.RunCurrentCell)
-    public async runCurrentCell(id: string) {
+    public async runCurrentCell() {
         if (!this.documentManager.activeTextEditor || !this.documentManager.activeTextEditor.document) {
             return;
         }
@@ -149,14 +149,14 @@ export class CodeWatcher implements ICodeWatcher {
         for (const lens of this.codeLenses) {
             // Check to see which RunCell lens range overlaps the current selection start
             if (lens.range.contains(this.documentManager.activeTextEditor.selection.start) && lens.command && lens.command.command === Commands.RunCell) {
-                await this.runCell(lens.range, id);
+                await this.runCell(lens.range);
                 break;
             }
         }
     }
 
     @captureTelemetry(Telemetry.RunCurrentCellAndAdvance)
-    public async runCurrentCellAndAdvance(id: string) {
+    public async runCurrentCellAndAdvance() {
         if (!this.documentManager.activeTextEditor || !this.documentManager.activeTextEditor.document) {
             return;
         }
@@ -191,7 +191,7 @@ export class CodeWatcher implements ICodeWatcher {
             }
 
             // Run the cell after moving the selection
-            await this.runCell(currentRunCellLens.range, id);
+            await this.runCell(currentRunCellLens.range);
         }
     }
 
