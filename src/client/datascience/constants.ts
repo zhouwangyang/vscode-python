@@ -96,6 +96,7 @@ export namespace CodeSnippits {
 export namespace Identifiers {
     export const EmptyFileName = '2DB9B899-6519-4E1B-88B0-FA728A274115';
     export const GeneratedThemeName = 'ipython-theme'; // This needs to be all lower class and a valid class name.
+    export const HistoryPurpose = 'history';
 }
 
 export namespace JupyterCommands {

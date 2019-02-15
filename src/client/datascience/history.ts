@@ -29,7 +29,7 @@ import { createDeferred, Deferred } from '../common/utils/async';
 import * as localize from '../common/utils/localize';
 import { IInterpreterService } from '../interpreter/contracts';
 import { captureTelemetry, sendTelemetryEvent } from '../telemetry';
-import { EditorContexts, Identifiers, Telemetry } from './constants';
+import { EditorContexts, Identifiers, Telemetry, Settings } from './constants';
 import { HistoryMessageListener } from './historyMessageListener';
 import { JupyterInstallError } from './jupyter/jupyterInstallError';
 import {
@@ -43,7 +43,6 @@ import {
     IJupyterExecution,
     INotebookExporter,
     INotebookServer,
-    INotebookServerManager,
     InterruptResult,
     IStatusProvider,
     ISysInfo
@@ -68,7 +67,7 @@ export class History implements IHistory {
     private unfinishedCells: ICell[] = [];
     private restartingKernel: boolean = false;
     private potentiallyUnfinishedStatus: Disposable[] = [];
-    private addedSysInfo: boolean = false;
+    private addSysInfoPromise: Deferred<boolean> | undefined;
     private waitingForExportCells: boolean = false;
     private jupyterServer: INotebookServer | undefined;
     private changeHandler: IDisposable | undefined;
@@ -90,7 +89,6 @@ export class History implements IHistory {
         @inject(IConfigurationService) private configuration: IConfigurationService,
         @inject(ICommandManager) private commandManager: ICommandManager,
         @inject(INotebookExporter) private jupyterExporter: INotebookExporter,
-        @inject(INotebookServerManager) private jupyterServerManager: INotebookServerManager,
         @inject(IWorkspaceService) private workspaceService: IWorkspaceService) {
 
         // Create our unique id. We use this to skip messages we send to other history windows
@@ -653,7 +651,33 @@ export class History implements IHistory {
     }
 
     private async loadJupyterServer(restart?: boolean): Promise<void> {
-        this.jupyterServer = await this.jupyterServerManager.getOrCreateServer();
+        // Find the settings that we are going to launch our server with
+        const settings = this.configuration.getSettings();
+        let serverURI: string | undefined = settings.datascience.jupyterServerURI;
+        const useDefaultConfig: boolean | undefined = settings.datascience.useDefaultConfigForJupyter;
+        // Check for dark theme, if so set matplot lib to use dark_background settings
+        let darkTheme: boolean = false;
+        const workbench = this.workspaceService.getConfiguration('workbench');
+        if (workbench) {
+            const theme = workbench.get<string>('colorTheme');
+            if (theme) {
+                darkTheme = /dark/i.test(theme);
+            }
+        }
+
+        // For the local case pass in our URI as undefined, that way connect doesn't have to check the setting
+        if (serverURI === Settings.JupyterServerLocalLaunch) {
+            serverURI = undefined;
+        }
+
+        // Now try to create a notebook server
+        this.jupyterServer = await this.jupyterExecution.connectToNotebookServer(
+            {
+                uri: serverURI,
+                usingDarkTheme: darkTheme,
+                useDefaultConfig,
+                purpose: Identifiers.HistoryPurpose
+            });
     }
 
     private generateSysInfoCell = async (reason: SysInfoReason): Promise<ICell | undefined> => {
@@ -718,8 +742,9 @@ export class History implements IHistory {
     }
 
     private addSysInfo = async (reason: SysInfoReason): Promise<void> => {
-        if (!this.addedSysInfo || reason === SysInfoReason.Interrupt || reason === SysInfoReason.Restart) {
-            this.addedSysInfo = true;
+        if (!this.addSysInfoPromise || reason === SysInfoReason.Interrupt || reason === SysInfoReason.Restart) {
+            const deferred = createDeferred<boolean>();
+            this.addSysInfoPromise = deferred;
 
             // Generate a new sys info cell and send it to the web panel.
             const sysInfo = await this.generateSysInfoCell(reason);
@@ -731,6 +756,10 @@ export class History implements IHistory {
             if (reason === SysInfoReason.Interrupt || reason === SysInfoReason.Restart) {
                 this.shareMessage(HistoryMessages.AddedSysInfo, { sysInfoCell: sysInfo, id: this.id });
             }
+
+            deferred.resolve(true);
+        } else if (this.addSysInfoPromise) {
+            await this.addSysInfoPromise.promise;
         }
     }
 

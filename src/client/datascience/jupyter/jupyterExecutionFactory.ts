@@ -7,10 +7,22 @@ import { CancellationToken } from 'vscode';
 import { ILiveShareApi, IWorkspaceService } from '../../common/application/types';
 import { IFileSystem } from '../../common/platform/types';
 import { IProcessServiceFactory, IPythonExecutionFactory } from '../../common/process/types';
-import { IAsyncDisposableRegistry, IConfigurationService, IDisposableRegistry, ILogger } from '../../common/types';
+import {
+    IAsyncDisposable,
+    IAsyncDisposableRegistry,
+    IConfigurationService,
+    IDisposableRegistry,
+    ILogger
+} from '../../common/types';
 import { IInterpreterService, IKnownSearchPathsForInterpreters, PythonInterpreter } from '../../interpreter/contracts';
 import { IServiceContainer } from '../../ioc/types';
-import { IJupyterCommandFactory, IJupyterExecution, IJupyterSessionManager, INotebookServer } from '../types';
+import {
+    IJupyterCommandFactory,
+    IJupyterExecution,
+    IJupyterSessionManager,
+    INotebookServer,
+    INotebookServerOptions
+} from '../types';
 import { GuestJupyterExecution } from './liveshare/guestJupyterExecution';
 import { HostJupyterExecution } from './liveshare/hostJupyterExecution';
 import { IRoleBasedObject, RoleBasedFactory } from './liveshare/roleBasedFactory';
@@ -37,7 +49,7 @@ type JupyterExecutionClassType = {
 };
 
 @injectable()
-export class JupyterExecutionFactory implements IJupyterExecution {
+export class JupyterExecutionFactory implements IJupyterExecution, IAsyncDisposable {
 
     private executionFactory: RoleBasedFactory<IJupyterExecutionInterface, JupyterExecutionClassType>;
 
@@ -55,6 +67,7 @@ export class JupyterExecutionFactory implements IJupyterExecution {
                 @inject(IConfigurationService) configuration: IConfigurationService,
                 @inject(IJupyterCommandFactory) commandFactory : IJupyterCommandFactory,
                 @inject(IServiceContainer) serviceContainer: IServiceContainer) {
+        asyncRegistry.push(this);
         this.executionFactory = new RoleBasedFactory<IJupyterExecutionInterface, JupyterExecutionClassType>(
             liveShare,
             HostJupyterExecution,
@@ -74,6 +87,12 @@ export class JupyterExecutionFactory implements IJupyterExecution {
             commandFactory,
             serviceContainer
         );
+    }
+
+    public async dispose() : Promise<void> {
+        // Dispose of our execution object
+        const execution = await this.executionFactory.get();
+        return execution.dispose();
     }
 
     public async isNotebookSupported(cancelToken?: CancellationToken): Promise<boolean> {
@@ -96,10 +115,10 @@ export class JupyterExecutionFactory implements IJupyterExecution {
         const execution = await this.executionFactory.get();
         return execution.isSpawnSupported(cancelToken);
     }
-    public async connectToNotebookServer(uri: string | undefined, usingDarkTheme: boolean, useDefaultConfig: boolean, cancelToken?: CancellationToken, workingDir?: string): Promise<INotebookServer | undefined> {
+    public async connectToNotebookServer(options?: INotebookServerOptions, cancelToken?: CancellationToken): Promise<INotebookServer | undefined> {
         const execution = await this.executionFactory.get();
-        return execution.connectToNotebookServer(uri, usingDarkTheme, useDefaultConfig, cancelToken, workingDir);
-    }
+        return execution.connectToNotebookServer(options, cancelToken);
+}
     public async spawnNotebook(file: string): Promise<void> {
         const execution = await this.executionFactory.get();
         return execution.spawnNotebook(file);
@@ -111,9 +130,5 @@ export class JupyterExecutionFactory implements IJupyterExecution {
     public async getUsableJupyterPython(cancelToken?: CancellationToken): Promise<PythonInterpreter | undefined> {
         const execution = await this.executionFactory.get();
         return execution.getUsableJupyterPython(cancelToken);
-    }
-    public async dispose(): Promise<void> {
-        const execution = await this.executionFactory.get();
-        return execution.dispose();
     }
 }

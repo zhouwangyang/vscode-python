@@ -80,7 +80,7 @@ export class HostJupyterServer
                 return this.responseQueue.waitForObservable(code, file, line, id);
             } else {
                 // Otherwise save this request
-                this.requestLog[id] = Date.now();
+                this.requestLog.set(id, Date.now());
                 const inner = super.executeObservable(code, file, line, id);
 
                 // Cleanup old requests

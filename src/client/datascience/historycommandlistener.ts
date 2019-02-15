@@ -215,8 +215,9 @@ export class HistoryCommandListener implements IDataScienceCommandListener {
             const settings = this.configuration.getSettings();
             const useDefaultConfig : boolean | undefined = settings.datascience.useDefaultConfigForJupyter;
 
-            // Try starting a server.
-            server = await this.jupyterExecution.connectToNotebookServer(undefined, false, useDefaultConfig, cancelToken);
+            // Try starting a server. Purpose should be unique so we
+            // create a brand new one.
+            server = await this.jupyterExecution.connectToNotebookServer({ useDefaultConfig, purpose: uuid()}, cancelToken);
 
             // If that works, then execute all of the cells.
             const cells = Array.prototype.concat(... await Promise.all(ranges.map(r => {

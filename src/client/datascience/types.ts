@@ -48,12 +48,6 @@ export interface INotebookServerLaunchInfo
     workingDir: string | undefined;
 }
 
-// Manage our running notebook server instances
-export const INotebookServerManager = Symbol('INotebookServerManager');
-export interface INotebookServerManager {
-    getOrCreateServer(): Promise<INotebookServer | undefined>;
-}
-
 // Talks to a jupyter ipython kernel to retrieve data for cells
 export const INotebookServer = Symbol('INotebookServer');
 export interface INotebookServer extends IAsyncDisposable {
@@ -70,6 +64,14 @@ export interface INotebookServer extends IAsyncDisposable {
     getSysInfo() : Promise<ICell | undefined>;
 }
 
+export interface INotebookServerOptions {
+    uri?: string;
+    usingDarkTheme?: boolean;
+    useDefaultConfig?: boolean;
+    workingDir?: string;
+    purpose: string;
+}
+
 export const IJupyterExecution = Symbol('IJupyterExecution');
 export interface IJupyterExecution extends IAsyncDisposable {
     isNotebookSupported(cancelToken?: CancellationToken) : Promise<boolean>;
@@ -77,7 +79,7 @@ export interface IJupyterExecution extends IAsyncDisposable {
     isKernelCreateSupported(cancelToken?: CancellationToken): Promise<boolean>;
     isKernelSpecSupported(cancelToken?: CancellationToken): Promise<boolean>;
     isSpawnSupported(cancelToken?: CancellationToken): Promise<boolean>;
-    connectToNotebookServer(uri: string | undefined, usingDarkTheme: boolean, useDefaultConfig: boolean, cancelToken?: CancellationToken, workingDir?: string) : Promise<INotebookServer | undefined>;
+    connectToNotebookServer(options?: INotebookServerOptions, cancelToken?: CancellationToken) : Promise<INotebookServer | undefined>;
     spawnNotebook(file: string) : Promise<void>;
     importNotebook(file: string, template: string) : Promise<string>;
     getUsableJupyterPython(cancelToken?: CancellationToken) : Promise<PythonInterpreter | undefined>;
