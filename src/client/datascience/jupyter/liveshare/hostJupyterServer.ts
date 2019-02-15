@@ -15,14 +15,16 @@ import { ICell, IDataScience, IJupyterSessionManager, INotebookServer, Interrupt
 import { JupyterServerBase } from '../jupyterServer';
 import { LiveShareParticipantHost } from './liveShareParticipantMixin';
 import { IRoleBasedObject } from './roleBasedFactory';
-import { IResponseMapping, IServerResponse, ServerResponseType } from './types';
+import { IResponseMapping, IServerResponse, ServerResponseType, IExecuteObservableResponse } from './types';
+import { ResponseQueue } from './responseQueue';
 
 // tslint:disable:no-any
 
 export class HostJupyterServer
     extends LiveShareParticipantHost(JupyterServerBase, LiveShare.JupyterServerSharedService)
     implements IRoleBasedObject, INotebookServer {
-    private responseBacklog : IServerResponse[] = [];
+    private responseQueue : ResponseQueue = new ResponseQueue();
+    private requestLog : Map<string, number> = new Map<string, number>();
     private catchupPendingCount : number = 0;
     constructor(
         liveShare: ILiveShareApi,
@@ -58,6 +60,7 @@ export class HostJupyterServer
                 service.onRequest(LiveShareCommands.restart, (args: any[], cancellation: CancellationToken) => this.onRestartRequest(cancellation))
                 service.onRequest(LiveShareCommands.interrupt, (args: any[], cancellation: CancellationToken) => this.onInterruptRequest(args.length > 0 ? args[0] as number : LiveShare.InterruptDefaultTimeout, cancellation))
                 service.onNotify(LiveShareCommands.catchupRequest, (args: object) => this.onCatchupRequest(args));
+                service.onNotify(LiveShareCommands.executeObservable, (args: any[]) => this.onExecuteObservableRequest(args));
             }
         }
     }
@@ -71,11 +74,26 @@ export class HostJupyterServer
 
     public executeObservable(code: string, file: string, line: number, id: string): Observable<ICell[]> {
         try {
-            const inner = super.executeObservable(code, file, line, id);
+            // See if this has already been asked for not
+            if (this.requestLog.has(id)) {
+                // Create a dummy observable out of the responses as they come in.
+                return this.responseQueue.waitForObservable(code, file, line, id);
+            } else {
+                // Otherwise save this request
+                this.requestLog[id] = Date.now();
+                const inner = super.executeObservable(code, file, line, id);
 
-            // Wrap the observable returned so we can listen to it too
-            return this.wrapObservableResult(code, inner, id);
+                // Cleanup old requests
+                const now = Date.now();
+                for (let [k, val] of this.requestLog) {
+                    if (now - val > LiveShare.ResponseLifetime) {
+                        this.requestLog.delete(k);
+                    }
+                }
 
+                // Wrap the observable returned so we can listen to it too
+                return this.wrapObservableResult(code, inner, id);
+            }
         } catch (exc) {
             this.postException(exc);
             throw exc;
@@ -134,15 +152,25 @@ export class HostJupyterServer
             const service = await this.waitForService();
             if (service) {
                 // Send results for all responses that are left.
-                this.responseBacklog.forEach(r => {
-                    service.notify(LiveShareCommands.serverResponse, r);
-                });
+                this.responseQueue.send(service);
 
                 // Eliminate old responses if possible.
                 this.catchupPendingCount -= 1;
                 if (this.catchupPendingCount <= 0) {
-                    this.responseBacklog = [];
+                    this.responseQueue.clear();
                 }
+            }
+        }
+    }
+
+    private onExecuteObservableRequest(args: any[]) {
+        // See if we started this execute or not already.
+        if (args.length >= 4) {
+            const id = args[3] as string;
+            if (!this.requestLog.has(id)) {
+                // Just call the execute. Locally we won't listen, but if an actual call comes in for the same
+                // request, it will use the saved responses.
+                this.executeObservable(args[0], args[1], args[2], args[3]);
             }
         }
     }
@@ -199,7 +227,7 @@ export class HostJupyterServer
                 }).ignoreErrors();
 
                 // Need to also save in memory for those guests that are in the middle of starting up
-                this.responseBacklog.push(typedResult);
+                this.responseQueue.push(typedResult);
             }
     }
 }

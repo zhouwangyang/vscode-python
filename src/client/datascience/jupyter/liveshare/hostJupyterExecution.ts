@@ -35,7 +35,6 @@ export class HostJupyterExecution
     implements IRoleBasedObject, IJupyterExecution {
     private sharedServers: Disposable [] = [];
     private fowardedPorts: number [] = [];
-    private runningServer: INotebookServer | undefined;
     constructor(
         liveShare: ILiveShareApi,
         executionFactory: IPythonExecutionFactory,
@@ -76,47 +75,39 @@ export class HostJupyterExecution
     }
 
     public async connectToNotebookServer(uri: string | undefined, usingDarkTheme: boolean, useDefaultConfig: boolean, cancelToken?: CancellationToken, workingDir?: string): Promise<INotebookServer | undefined> {
-        // We only have a single server at a time.
-        if (!this.runningServer) {
+        // Create the server
+        let sharedServerDisposable: Disposable | undefined;
+        const result = await super.connectToNotebookServer(uri, usingDarkTheme, useDefaultConfig, cancelToken, workingDir);
 
-            // Create the server
-            let sharedServerDisposable : Disposable | undefined;
-            const result = await super.connectToNotebookServer(uri, usingDarkTheme, useDefaultConfig, cancelToken, workingDir);
+        // Then using the liveshare api, port forward whatever port is being used by the server
 
-            // Then using the liveshare api, port forward whatever port is being used by the server
-
-            // tslint:disable-next-line:no-suspicious-comment
-            // TODO: Liveshare can actually change this value on the guest. So on the guest side we need to listen
-            // to an event they are going to add to their api
-            if (!uri && result) {
-                const connectionInfo = result.getConnectionInfo();
-                if (connectionInfo) {
-                    const portMatch = RegExpValues.ExtractPortRegex.exec(connectionInfo.baseUrl);
-                    if (portMatch && portMatch.length > 1) {
-                        sharedServerDisposable = await this.portForwardServer(parseInt(portMatch[1], 10));
-                    }
+        // tslint:disable-next-line:no-suspicious-comment
+        // TODO: Liveshare can actually change this value on the guest. So on the guest side we need to listen
+        // to an event they are going to add to their api
+        if (!uri && result) {
+            const connectionInfo = result.getConnectionInfo();
+            if (connectionInfo) {
+                const portMatch = RegExpValues.ExtractPortRegex.exec(connectionInfo.baseUrl);
+                if (portMatch && portMatch.length > 1) {
+                    sharedServerDisposable = await this.portForwardServer(parseInt(portMatch[1], 10));
                 }
-            }
-
-            if (result) {
-                // Save this result, but modify its dispose such that we
-                // can detach from the server when it goes away.
-                this.runningServer = result;
-                const oldDispose = result.dispose.bind(result);
-                result.dispose = () => {
-                    // Dispose of the shared server
-                    if (sharedServerDisposable) {
-                        sharedServerDisposable.dispose();
-                    }
-                    // Mark as not having a running server anymore
-                    this.runningServer = undefined;
-
-                    return oldDispose();
-                };
             }
         }
 
-        return this.runningServer;
+        if (result) {
+            // Save this result, but modify its dispose such that we
+            // can detach from the server when it goes away.
+            const oldDispose = result.dispose.bind(result);
+            result.dispose = () => {
+                // Dispose of the shared server
+                if (sharedServerDisposable) {
+                    sharedServerDisposable.dispose();
+                }
+                return oldDispose();
+            };
+        }
+
+        return result;
     }
 
     public async onAttach(api: vsls.LiveShare | null) : Promise<void> {

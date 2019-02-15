@@ -330,7 +330,7 @@ export class History implements IHistory {
 
     private dispatchMessage<M extends IHistoryMapping, T extends keyof M>(message: T, payload: any, handler: (args : M[T]) => void) {
         const args = payload as M[T];
-        handler(args);
+        handler.bind(this)(args);
     }
 
     // tslint:disable-next-line:no-any
@@ -349,14 +349,9 @@ export class History implements IHistory {
     // tslint:disable-next-line:no-any
     private onRemoteAddedCode(args: IRemoteAddCode) {
         // Make sure this is valid
-        if (payload.id && payload.code && payload) {
-
-            // Not from us, must come from a different history window. Add to our
-            // own to keep in sync
-            if (payload.sysInfo) {
-                const sysInfo = payload.sysInfo as ICell;
-                this.onAddCodeEvent([sysInfo]);
-            }
+        if (args && args.id && args.file && args.originator != this.id) {
+            // Submit this item as new code.
+            this.submitCode(args.code, args.file, args.line, args.id).ignoreErrors();
         }
     }
 
@@ -429,10 +424,10 @@ export class History implements IHistory {
     }
 
     private async submitCode(code: string, file: string, line: number, id?: string, editor?: TextEditor) : Promise<void> {
-        // Mimic this to the other side if we are doing this locally
+        // Transmit this submission to all other listeners (in a live share session)
         if (!id) {
             id = uuid();
-            this.shareMessage(HistoryMessages.RemoteAddCode, {code, file, line, id});
+            this.shareMessage(HistoryMessages.RemoteAddCode, {code, file, line, id, originator: this.id});
         }
 
         // Start a status item

@@ -346,8 +346,8 @@ export class HistoryCommandListener implements IDataScienceCommandListener {
     }
 
     @captureTelemetry(Telemetry.ShowHistoryPane, undefined, false)
-    private showHistoryPane() : Promise<void>{
-        const active = this.historyProvider.getOrCreateActive();
+    private async showHistoryPane() : Promise<void>{
+        const active = await this.historyProvider.getOrCreateActive();
         return active.show();
     }
 

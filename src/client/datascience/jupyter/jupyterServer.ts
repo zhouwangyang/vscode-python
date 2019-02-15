@@ -200,36 +200,6 @@ export class JupyterServerBase implements INotebookServer {
         return this.executeObservableImpl(code, file, line, id, false);
     }
 
-    public executeSilently(code: string, cancelToken?: CancellationToken): Promise<ICell[]> {
-        // Do initial setup if necessary
-        this.initialNotebookSetup();
-
-        // Create a deferred that we'll fire when we're done
-        const deferred = createDeferred<ICell[]>();
-
-        // Attempt to evaluate this cell in the jupyter notebook
-        const observable = this.executeObservableImpl(code, Identifiers.EmptyFileName, 0, uuid(), true);
-        let output: ICell[];
-
-        observable.subscribe(
-            (cells: ICell[]) => {
-                output = cells;
-            },
-            (error) => {
-                deferred.reject(error);
-            },
-            () => {
-                deferred.resolve(output);
-            });
-
-        if (cancelToken) {
-            this.disposableRegistry.push(cancelToken.onCancellationRequested(() => deferred.reject(new CancellationError())));
-        }
-
-        // Wait for the execution to finish
-        return deferred.promise;
-    }
-
     public async getSysInfo() : Promise<ICell> {
         // tslint:disable-next-line:no-multiline-string
         const versionCells = await this.executeSilently(`import sys\r\nsys.version`);
@@ -382,6 +352,36 @@ export class JupyterServerBase implements INotebookServer {
             ...this.launchInfo.connectionInfo,
             dispose: noop
         };
+    }
+
+    private executeSilently(code: string, cancelToken?: CancellationToken): Promise<ICell[]> {
+        // Do initial setup if necessary
+        this.initialNotebookSetup();
+
+        // Create a deferred that we'll fire when we're done
+        const deferred = createDeferred<ICell[]>();
+
+        // Attempt to evaluate this cell in the jupyter notebook
+        const observable = this.executeObservableImpl(code, Identifiers.EmptyFileName, 0, uuid(), true);
+        let output: ICell[];
+
+        observable.subscribe(
+            (cells: ICell[]) => {
+                output = cells;
+            },
+            (error) => {
+                deferred.reject(error);
+            },
+            () => {
+                deferred.resolve(output);
+            });
+
+        if (cancelToken) {
+            this.disposableRegistry.push(cancelToken.onCancellationRequested(() => deferred.reject(new CancellationError())));
+        }
+
+        // Wait for the execution to finish
+        return deferred.promise;
     }
 
     private extractStreamOutput(cell: ICell): string {

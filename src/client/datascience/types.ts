@@ -117,7 +117,7 @@ export const IHistoryProvider = Symbol('IHistoryProvider');
 export interface IHistoryProvider {
     getActive() : IHistory | undefined;
 
-    getOrCreateActive(): IHistory;
+    getOrCreateActive(): Promise<IHistory>;
 }
 
 export const IHistory = Symbol('IHistory');

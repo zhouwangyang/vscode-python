@@ -33,11 +33,9 @@ export namespace HistoryMessages {
 // These are the messages that will mirror'd to guest/hosts in
 // a live share session
 export const HistoryRemoteMessages : string[] = [
-    HistoryMessages.StartCell,
-    HistoryMessages.FinishCell,
-    HistoryMessages.UpdateCell,
     HistoryMessages.SubmitNewCell,
     HistoryMessages.AddedSysInfo,
+    HistoryMessages.RemoteAddCode
 ]
 
 export interface IGotoCode {
@@ -54,7 +52,8 @@ export interface IRemoteAddCode {
     code: string,
     file: string,
     line: number,
-    id: string
+    id: string,
+    originator: string
 }
 
 export interface ISubmitNewCell {

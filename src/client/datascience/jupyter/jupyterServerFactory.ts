@@ -111,11 +111,6 @@ export class JupyterServerFactory implements INotebookServer {
         });
     }
 
-    public async executeSilently(code: string, cancelToken?: CancellationToken): Promise<void> {
-        const server = await this.serverFactory.get();
-        return server.dispose();
-    }
-
     public async restartKernel(): Promise<void> {
         const server = await this.serverFactory.get();
         return server.restartKernel();

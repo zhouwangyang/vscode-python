@@ -28,13 +28,13 @@ import {
     IServerResponse,
     ServerResponseType
 } from './types';
+import { ResponseQueue } from './responseQueue';
 
 export class GuestJupyterServer
     extends LiveShareParticipantGuest(LiveShareParticipantDefault, LiveShare.JupyterServerSharedService)
     implements INotebookServer, ILiveShareParticipant {
     private launchInfo : INotebookServerLaunchInfo | undefined;
-    private responseQueue : IServerResponse [] = [];
-    private waitingQueue : { deferred: Deferred<IServerResponse>; predicate(r: IServerResponse) : boolean }[] = [];
+    private responseQueue : ResponseQueue = new ResponseQueue();
 
     constructor(
         liveShare: ILiveShareApi,
@@ -97,22 +97,9 @@ export class GuestJupyterServer
     }
 
     public executeObservable(code: string, file: string, line: number, id: string): Observable<ICell[]> {
-        // This call should be mirror'd by the underlying event system, so we can just wait for a response.
-
-        // Create a wrapper observable around the actual server
-        return new Observable<ICell[]>(subscriber => {
-            // Wait for the observable responses to come in
-            this.waitForObservable(subscriber, code, file, line, id)
-                .catch(e => {
-                    subscriber.error(e);
-                    subscriber.complete();
-                });
-        });
-    }
-
-    public async executeSilently(code: string, cancelToken?: CancellationToken): Promise<void> {
-        // We don't need the result from this. It should have already happened on the host side
-        return Promise.resolve();
+        // Mimic this to the other side and then wait for a response
+        this.waitForService().then(s => s.notify(LiveShareCommands.executeObservable, [code, file, line, id]));
+        return this.responseQueue.waitForObservable(code, file, line, id);
     }
 
     public async restartKernel(): Promise<void> {
@@ -174,9 +161,6 @@ export class GuestJupyterServer
         // Args should be of type ServerResponse. Stick in our queue if so.
         if (args.hasOwnProperty('type')) {
             this.responseQueue.push(args as IServerResponse);
-
-            // Check for any waiters.
-            this.dispatchResponses();
         }
     }
 
@@ -185,65 +169,4 @@ export class GuestJupyterServer
         return service.request(command, args);
     }
 
-    private async waitForObservable(subscriber: Subscriber<ICell[]>, code: string, file: string, line: number, id: string) : Promise<void> {
-        let pos = 0;
-        let foundId = id;
-        let cells: ICell[] | undefined = [];
-        while (cells !== undefined) {
-            // Find all matches in order
-            const response = await this.waitForSpecificResponse<IExecuteObservableResponse>(r => {
-                return (r.pos === pos) &&
-                    (foundId === r.id || !foundId) &&
-                    (code === r.code) &&
-                    (!r.cells || (r.cells && r.cells[0].file === file && r.cells[0].line === line));
-            });
-            if (response.cells) {
-                subscriber.next(response.cells);
-                pos += 1;
-                foundId = response.id;
-            }
-            cells = response.cells;
-        }
-        subscriber.complete();
-    }
-
-    private waitForSpecificResponse<T extends IServerResponse>(predicate: (response: T) => boolean) : Promise<T> {
-        // See if we have any responses right now with this type
-        const index = this.responseQueue.findIndex(r => predicate(r as T));
-        if (index >= 0) {
-            // Pull off the match
-            const match = this.responseQueue[index];
-
-            // Remove from the response queue every response before this one as we're not going
-            // to be asking for them anymore. (they should be old requests)
-            this.responseQueue = this.responseQueue.length > index + 1 ? this.responseQueue.slice(index + 1) : [];
-
-            // Return this single item
-            return Promise.resolve(match as T);
-        } else {
-            // We have to wait for a new input to happen
-            const waitable = { deferred: createDeferred<T>(), predicate };
-            this.waitingQueue.push(waitable);
-            return waitable.deferred.promise;
-        }
-    }
-
-    private waitForResponse(type: ServerResponseType) : Promise<IServerResponse> {
-        return this.waitForSpecificResponse(r => r.type === type);
-    }
-
-    private dispatchResponses() {
-        // Look through all of our responses that are queued up and see if they make a
-        // waiting promise resolve
-        for (let i = 0; i < this.responseQueue.length; i += 1) {
-            const response = this.responseQueue[i];
-            const matchIndex = this.waitingQueue.findIndex(w => w.predicate(response));
-            if (matchIndex >= 0) {
-                this.waitingQueue[matchIndex].deferred.resolve(response);
-                this.waitingQueue.splice(matchIndex, 1);
-                this.responseQueue.splice(i, 1);
-                i -= 1; // Offset the addition as we removed this item
-            }
-        }
-    }
 }

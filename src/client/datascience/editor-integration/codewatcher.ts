@@ -77,7 +77,7 @@ export class CodeWatcher implements ICodeWatcher {
 
     @captureTelemetry(Telemetry.RunAllCells)
     public async runAllCells() {
-        const activeHistory = this.historyProvider.getOrCreateActive();
+        const activeHistory = await this.historyProvider.getOrCreateActive();
 
         // Run all of our code lenses, they should always be ordered in the file so we can just
         // run them one by one
@@ -103,7 +103,7 @@ export class CodeWatcher implements ICodeWatcher {
 
     @captureTelemetry(Telemetry.RunSelectionOrLine)
     public async runSelectionOrLine(activeEditor : TextEditor | undefined) {
-        const activeHistory = this.historyProvider.getOrCreateActive();
+        const activeHistory = await this.historyProvider.getOrCreateActive();
 
         if (this.document && activeEditor &&
             this.fileSystem.arePathsSame(activeEditor.document.fileName, this.document.fileName)) {
@@ -126,7 +126,7 @@ export class CodeWatcher implements ICodeWatcher {
 
     @captureTelemetry(Telemetry.RunCell)
     public async runCell(range: Range) {
-        const activeHistory = this.historyProvider.getOrCreateActive();
+        const activeHistory = await this.historyProvider.getOrCreateActive();
         if (this.document) {
             // Use that to get our code.
             const code = this.document.getText(range);

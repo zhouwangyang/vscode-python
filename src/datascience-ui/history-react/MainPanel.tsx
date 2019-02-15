@@ -668,7 +668,7 @@ export class MainPanel extends React.Component<IMainPanelProps, IMainPanelState>
 
             // Send a message to execute this code if necessary.
             if (editCell.cell.state !== CellState.finished) {
-                PostOffice.sendMessage(HistoryMessages.SubmitNewCell, { code: id: editCell.cell.id });
+                PostOffice.sendMessage(HistoryMessages.SubmitNewCell, { code, id: editCell.cell.id });
             }
         }
     }

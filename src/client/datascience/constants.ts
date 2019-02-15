@@ -107,13 +107,11 @@ export namespace JupyterCommands {
 }
 
 export namespace LiveShare {
-    export const None = 'none';
-    export const Host = 'host';
-    export const Guest = 'guest';
     export const JupyterExecutionService = 'jupyterExecutionService';
     export const JupyterServerSharedService = 'jupyterServerSharedService';
     export const CommandBrokerService = 'commmandBrokerService';
     export const WebPanelMessageService = 'webPanelMessageService';
+    export const HistoryProviderService = 'historyProviderService';
     export const LiveShareBroadcastRequest = 'broadcastRequest';
     export const ResponseLifetime = 15000;
     export const ResponseRange = 1000; // Range of time alloted to check if a response matches or not
@@ -127,10 +125,13 @@ export namespace LiveShareCommands {
     export const isKernelSpecSupported = 'isKernelSpecSupported';
     export const connectToNotebookServer = 'connectToNotebookServer';
     export const getUsableJupyterPython = 'getUsableJupyterPython';
+    export const executeObservable = 'executeObservable';
     export const getSysInfo = 'getSysInfo';
     export const serverResponse = 'serverResponse';
     export const catchupRequest = 'catchupRequest';
     export const syncRequest = 'synchRequest';
     export const restart = 'restart';
     export const interrupt = 'interrupt';
+    export const historyCreate = 'historyCreate';
+    export const historyCreateSync = 'historyCreateSync';
 }
