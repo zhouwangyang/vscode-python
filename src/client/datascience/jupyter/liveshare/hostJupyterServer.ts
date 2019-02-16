@@ -17,6 +17,7 @@ import { LiveShareParticipantHost } from './liveShareParticipantMixin';
 import { IRoleBasedObject } from './roleBasedFactory';
 import { IResponseMapping, IServerResponse, ServerResponseType, IExecuteObservableResponse } from './types';
 import { ResponseQueue } from './responseQueue';
+import { IExecuteInfo } from '../../historyTypes';
 
 // tslint:disable:no-any
 
@@ -55,12 +56,15 @@ export class HostJupyterServer
 
             // Attach event handlers to different requests
             if (service) {
-                service.onRequest(LiveShareCommands.syncRequest, (args: object, cancellation: CancellationToken) => this.onSync());
-                service.onRequest(LiveShareCommands.getSysInfo, (args: any[], cancellation: CancellationToken) => this.onGetSysInfoRequest(cancellation));
-                service.onRequest(LiveShareCommands.restart, (args: any[], cancellation: CancellationToken) => this.onRestartRequest(cancellation))
-                service.onRequest(LiveShareCommands.interrupt, (args: any[], cancellation: CancellationToken) => this.onInterruptRequest(args.length > 0 ? args[0] as number : LiveShare.InterruptDefaultTimeout, cancellation))
+                // Requests return arrays
+                service.onRequest(LiveShareCommands.syncRequest, (args: any[], cancellation: CancellationToken) => this.onSync());
+                service.onRequest(LiveShareCommands.getSysInfo, (args:  any[], cancellation: CancellationToken) => this.onGetSysInfoRequest(cancellation));
+                service.onRequest(LiveShareCommands.restart, (args:  any[], cancellation: CancellationToken) => this.onRestartRequest(cancellation))
+                service.onRequest(LiveShareCommands.interrupt, (args:  any[], cancellation: CancellationToken) => this.onInterruptRequest(args.length > 0 ? args[0] as number : LiveShare.InterruptDefaultTimeout, cancellation))
+
+                // Notifications are always objects.
                 service.onNotify(LiveShareCommands.catchupRequest, (args: object) => this.onCatchupRequest(args));
-                service.onNotify(LiveShareCommands.executeObservable, (args: any[]) => this.onExecuteObservableRequest(args));
+                service.onNotify(LiveShareCommands.executeObservable, (args: object) => this.onExecuteObservableRequest(args));
             }
         }
     }
@@ -163,14 +167,17 @@ export class HostJupyterServer
         }
     }
 
-    private onExecuteObservableRequest(args: any[]) {
+    private onExecuteObservableRequest(args: object) {
         // See if we started this execute or not already.
-        if (args.length >= 4) {
-            const id = args[3] as string;
-            if (!this.requestLog.has(id)) {
+        if (args.hasOwnProperty('code')) {
+            const obj = args as IExecuteInfo;
+            if (!this.requestLog.has(obj.id)) {
+                // Convert the file name
+                const file = this.finishedApi ? this.finishedApi.convertLocalUriToShared(vscode.Uri.file(obj.file)).fsPath : obj.file;
+
                 // Just call the execute. Locally we won't listen, but if an actual call comes in for the same
                 // request, it will use the saved responses.
-                this.executeObservable(args[0], args[1], args[2], args[3]);
+                this.execute(obj.code, file, obj.line, obj.id).ignoreErrors();
             }
         }
     }

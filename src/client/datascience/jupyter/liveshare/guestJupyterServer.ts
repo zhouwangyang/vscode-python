@@ -98,7 +98,7 @@ export class GuestJupyterServer
 
     public executeObservable(code: string, file: string, line: number, id: string): Observable<ICell[]> {
         // Mimic this to the other side and then wait for a response
-        this.waitForService().then(s => s.notify(LiveShareCommands.executeObservable, [code, file, line, id]));
+        this.waitForService().then(s => s.notify(LiveShareCommands.executeObservable, { code, file, line, id }));
         return this.responseQueue.waitForObservable(code, file, line, id);
     }
 

@@ -743,6 +743,7 @@ export class History implements IHistory {
 
     private addSysInfo = async (reason: SysInfoReason): Promise<void> => {
         if (!this.addSysInfoPromise || reason === SysInfoReason.Interrupt || reason === SysInfoReason.Restart) {
+            this.logger.logInformation(`Adding sys info for ${reason}`)
             const deferred = createDeferred<boolean>();
             this.addSysInfoPromise = deferred;
 
@@ -757,8 +758,11 @@ export class History implements IHistory {
                 this.shareMessage(HistoryMessages.AddedSysInfo, { sysInfoCell: sysInfo, id: this.id });
             }
 
+
+            this.logger.logInformation(`Sys info for ${reason} complete`)
             deferred.resolve(true);
         } else if (this.addSysInfoPromise) {
+            this.logger.logInformation(`Wait for sys info for ${reason}`)
             await this.addSysInfoPromise.promise;
         }
     }
@@ -775,20 +779,26 @@ export class History implements IHistory {
     }
 
     private loadWebPanel = async (): Promise<void> => {
+        this.logger.logInformation(`Loading web panel. Panel is ${this.webPanel ? 'set' : 'notset'}`)
+
         // Create our web panel (it's the UI that shows up for the history)
         if (this.webPanel === undefined) {
             // Figure out the name of our main bundle. Should be in our output directory
             const mainScriptPath = path.join(EXTENSION_ROOT_DIR, 'out', 'datascience-ui', 'history-react', 'index_bundle.js');
 
+            this.logger.logInformation(`Generating CSS...`)
             // Generate a css to put into the webpanel for viewing code
             const css = await this.cssGenerator.generateThemeCss();
 
             // Get our settings to pass along to the react control
             const settings = this.generateDataScienceExtraSettings();
 
+            this.logger.logInformation(`Loading web view...`)
             // Use this script to create our web view panel. It should contain all of the necessary
             // script to communicate with this class.
             this.webPanel = this.provider.create(this.messageListener, localize.DataScience.historyTitle(), mainScriptPath, css, settings);
+
+            this.logger.logInformation(`Web view created.`)
         }
     }
 

@@ -42,7 +42,7 @@ export function registerTypes(serviceManager: IServiceManager) {
     serviceManager.add<IHistory>(IHistory, History);
     serviceManager.add<INotebookExporter>(INotebookExporter, JupyterExporter);
     serviceManager.add<INotebookImporter>(INotebookImporter, JupyterImporter);
-    serviceManager.addSingleton<INotebookServer>(INotebookServer, JupyterServerFactory);
+    serviceManager.add<INotebookServer>(INotebookServer, JupyterServerFactory);
     serviceManager.addSingleton<ICodeCssGenerator>(ICodeCssGenerator, CodeCssGenerator);
     serviceManager.addSingleton<IStatusProvider>(IStatusProvider, StatusProvider);
     serviceManager.addSingleton<IJupyterSessionManager>(IJupyterSessionManager, JupyterSessionManager);

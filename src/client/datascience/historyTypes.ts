@@ -3,6 +3,7 @@
 'use strict';
 
 import { ICell, IHistoryInfo } from './types';
+import { file } from 'tmp';
 
 export namespace HistoryMessages {
     export const StartCell = 'start_cell';
@@ -48,17 +49,20 @@ export interface IAddedSysInfo {
     sysInfoCell: ICell
 }
 
-export interface IRemoteAddCode {
-    code: string,
-    file: string,
-    line: number,
-    id: string,
+export interface IRemoteAddCode extends IExecuteInfo {
     originator: string
 }
 
 export interface ISubmitNewCell {
     code: string,
     id: string
+}
+
+export interface IExecuteInfo {
+    code: string,
+    id: string,
+    file: string,
+    line: number
 }
 
 // Map all messages to specific payloads
