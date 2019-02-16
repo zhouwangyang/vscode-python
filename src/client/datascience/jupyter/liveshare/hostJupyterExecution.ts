@@ -92,6 +92,7 @@ export class HostJupyterExecution
         } else {
             // Create the server
             let sharedServerDisposable: Disposable | undefined;
+            let port = -1;
             const result = await super.connectToNotebookServer(fixedOptions, cancelToken);
 
             // Then using the liveshare api, port forward whatever port is being used by the server
@@ -104,7 +105,8 @@ export class HostJupyterExecution
                 if (connectionInfo && connectionInfo.localLaunch) {
                     const portMatch = RegExpValues.ExtractPortRegex.exec(connectionInfo.baseUrl);
                     if (portMatch && portMatch.length > 1) {
-                        sharedServerDisposable = await this.portForwardServer(parseInt(portMatch[1], 10));
+                        port = parseInt(portMatch[1], 10);
+                        sharedServerDisposable = await this.portForwardServer(port);
                     }
                 }
             }
@@ -116,6 +118,7 @@ export class HostJupyterExecution
                 // can detach from the server when it goes away.
                 const oldDispose = result.dispose.bind(result);
                 result.dispose = () => {
+                    this.fowardedPorts = this.fowardedPorts.filter(p => p != port);
                     // Dispose of the shared server
                     if (sharedServerDisposable) {
                         sharedServerDisposable.dispose();

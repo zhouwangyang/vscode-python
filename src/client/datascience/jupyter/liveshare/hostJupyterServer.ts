@@ -27,6 +27,7 @@ export class HostJupyterServer
     private responseQueue : ResponseQueue = new ResponseQueue();
     private requestLog : Map<string, number> = new Map<string, number>();
     private catchupPendingCount : number = 0;
+    private disposed = false;
     constructor(
         liveShare: ILiveShareApi,
         dataScience: IDataScience,
@@ -39,9 +40,12 @@ export class HostJupyterServer
     }
 
     public async dispose(): Promise<void> {
-        await super.dispose();
-        const api = await this.api;
-        return this.onDetach(api) ;
+        if (!this.disposed) {
+            this.disposed = true;
+            await super.dispose();
+            const api = await this.api;
+            return this.onDetach(api) ;
+        }
     }
 
     public async onDetach(api: vsls.LiveShare | null) : Promise<void> {
@@ -51,7 +55,7 @@ export class HostJupyterServer
     }
 
     public async onAttach(api: vsls.LiveShare | null) : Promise<void> {
-        if (api) {
+        if (api && !this.disposed) {
             const service = await this.waitForService();
 
             // Attach event handlers to different requests
@@ -173,7 +177,8 @@ export class HostJupyterServer
             const obj = args as IExecuteInfo;
             if (!this.requestLog.has(obj.id)) {
                 // Convert the file name
-                const file = this.finishedApi ? this.finishedApi.convertLocalUriToShared(vscode.Uri.file(obj.file)).fsPath : obj.file;
+                const uri = vscode.Uri.parse(`vsls:${obj.file}`);
+                const file = this.finishedApi ? this.finishedApi.convertLocalUriToShared(uri).fsPath : obj.file;
 
                 // Just call the execute. Locally we won't listen, but if an actual call comes in for the same
                 // request, it will use the saved responses.
