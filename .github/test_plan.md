@@ -236,6 +236,7 @@ Sample file:
   - [ ] `Variables` section of debugger sidebar
 - [ ] [Remote debugging](https://code.visualstudio.com/docs/python/debugging#_remote-debugging) works
   - [ ] ... over SSH
+  - [ ] ... on other branches
 - [ ] [App Engine](https://code.visualstudio.com/docs/python/debugging#_google-app-engine-debugging)
 
 ### [Unit testing](https://code.visualstudio.com/docs/python/unit-testing)
