@@ -194,7 +194,7 @@ def foo():pass
   - [ ] You are prompted to install `rope` if it is not already available
 - [ ] [`Sort Imports`](https://code.visualstudio.com/docs/python/editing#_sort-imports) works
 
-#### [Send code to terminal to execute]
+#### Send code to terminal to execute
 Sample file:
 	import requests
 	request = requests.get("https://drive.google.com/uc?export=download&id=1_9On2-nsBQIw3JiY43sWbrF8EjrqrR4U")
